@@ -6,7 +6,7 @@
 /*   By: tbailly- <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/11/26 21:16:48 by tbailly-          #+#    #+#             */
-/*   Updated: 2017/11/30 19:27:32 by tbailly-         ###   ########.fr       */
+/*   Updated: 2017/12/05 16:58:35 by tbailly-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,9 +60,10 @@ int		ft_has_newline(char **st_pt, char *buf, char **line, int i)
 	return (1);
 }
 
-int		ft_no_newline(char **storage_pt, char *buf, char **line)
+int		ft_no_newline(char **storage_pt, char *buf, char **line, int fd)
 {
 	char	*tmp;
+	int		ret;
 
 	tmp = *line;
 	if (buf == NULL)
@@ -72,31 +73,32 @@ int		ft_no_newline(char **storage_pt, char *buf, char **line)
 	if (line == NULL)
 		return (-1);
 	free(tmp);
-	return (1);
+	ret = ft_read_file(fd, line, storage_pt);
+	return (ret);
 }
 
 int		ft_read_file(int fd, char **line, char **storage_pt)
 {
 	int		nbchr;
 	char	buf[BUFF_SIZE + 1];
-	int		i;
 	int		ret;
+	char	*tmp;
 
-	i = -1;
 	ret = 0;
 	if ((nbchr = read(fd, buf, BUFF_SIZE)) > 0)
 	{
 		buf[nbchr] = '\0';
-		while (++i < nbchr)
-			if (buf[i] == '\n')
-				break ;
-		if (buf[i] == '\0' && i == nbchr)
+		while ((int)ft_strlen(buf) != nbchr)
 		{
-			ft_no_newline(storage_pt, buf, line);
-			ret = ft_read_file(fd, line, storage_pt);
+			tmp = ft_memchr(buf, '\0', nbchr);
+			ft_memmove(tmp, tmp + 1, ((&buf[nbchr]) - tmp));
+			nbchr--;
 		}
-		else if (buf[i] == '\n')
-			ret = ft_has_newline(storage_pt, buf, line, i);
+		if ((ft_memchr(buf, '\n', nbchr) - (void*)buf) >= 0)
+			ret = ft_has_newline(storage_pt, buf, line,
+					ft_memchr(buf, '\n', nbchr) - (void*)buf);
+		else
+			ret = ft_no_newline(storage_pt, buf, line, fd);
 	}
 	else
 		ret = ft_cannot_read(nbchr, storage_pt, line);
@@ -112,9 +114,8 @@ int		get_next_line(const int fd, char **line)
 	i = -1;
 	if (line == NULL)
 		return (-1);
-	if (!storage)
-		if (!(storage = (char*)ft_memalloc(sizeof(*storage))))
-			return (-1);
+	if (!storage && !(storage = (char*)ft_memalloc(sizeof(*storage))))
+		return (-1);
 	if (!(*line = (char*)malloc(sizeof(line))))
 		return (-1);
 	while (storage[++i] != '\0')
@@ -122,9 +123,8 @@ int		get_next_line(const int fd, char **line)
 			break ;
 	if (storage[i] == '\0')
 	{
-		if (ft_no_newline(&storage, NULL, line) == -1)
+		if ((ret = ft_no_newline(&storage, NULL, line, fd)) == -1)
 			return (-1);
-		ret = ft_read_file(fd, line, &storage);
 	}
 	else
 		ret = ft_has_newline(&storage, NULL, line, i);
